@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080, user-scalable=no" />
+    <title>COPILOT | Swipe to Spin</title>
+    <style>
+      body {
+        image-rendering: pixelated;
+        image-rendering: -webkit-optimize-contrast;
+        margin: 0;
+        background: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        cursor: none;
+      }
+      canvas {
+        image-rendering: pixelated;
+        image-rendering: -webkit-optimize-contrast;
+        border: 0;
+        cursor: none;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      @font-face {
+        font-family: "mona";
+        src: url("MonaSans-Bold.ttf") format("truetype");
+      }
+    </style>
+  </head>
+  <body>
+    <audio id="winSound" src="win.mp3" preload="auto"></audio>
+    <audio id="jumpSound" src="jump.mp3" preload="auto"></audio>
+    <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+    <script src="./gifler.min.js"></script>
+    <script>
+      const monafont = new FontFace(
+        "mona",
+        'url(MonaSans-Bold.ttf) format("truetype")'
+      );
+      monafont
+        .load()
+        .then((loadedFont) => {
+          document.fonts.add(loadedFont);
+        })
+        .catch((error) => {
+          console.error("Font failed to load:", error);
+        });
+      let lastGift1Time = 0;
+      const giftCooldown = 30 * 60 * 1000;
+      let audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      let spinBuffer, musicBuffer;
+      let wheelAngle = 0;
+      let spinning = false;
+      let isJumping = false;
+      let isCheering = false;
+      let backgroundFrame = 0;
+      let frameCounter = 0;
+      let hmove = 0;
+      let vmove = 0;
+      let hdirection = 1;
+      let vdirection = 1;
+      let scale = 1;
+      const preloadedGifs = {};
+      function preloadGif(url, width, height) {
+        return new Promise((resolve, reject) => {
+          const offscreenCanvas = document.createElement("canvas");
+          offscreenCanvas.width = width;
+          offscreenCanvas.height = height;
+          offscreenCanvas.imageSmoothingEnabled = true;
+          gifler(url)
+            .animate(offscreenCanvas)
+            .then((animator) => {
+              preloadedGifs[url] = {
+                canvas: offscreenCanvas,
+                animator: animator,
+              };
+              resolve(preloadedGifs[url]);
+            })
+            .catch(reject);
+        });
+      }
+      const canvas = document.getElementById("gameCanvas");
+      setpixelated(canvas.getContext("2d"));
+      const ctx = canvas.getContext("2d");
+      function setpixelated(context) {
+        context.imageSmoothingEnabled = true;
+        context.mozImageSmoothingEnabled = true;
+        context.oImageSmoothingEnabled = true;
+        context.webkitImageSmoothingEnabled = true;
+        context.msImageSmoothingEnabled = true;
+      }
+      const wheelBgCanvas = document.createElement("canvas");
+      wheelBgCanvas.width = 228 * 8; // 1824
+      wheelBgCanvas.height = 228 * 8; // 1824
+      wheelBgCanvas.opacity = 0.1;
+      const wheelBgCtx = wheelBgCanvas.getContext("2d");
+      async function loadMusic() {
+        const response = await fetch("music.mp3");
+        const arrayBuffer = await response.arrayBuffer();
+        audioContext.decodeAudioData(arrayBuffer, (buffer) => {
+          musicBuffer = buffer;
+          playBackgroundMusic();
+        });
+      }
+      function playBackgroundMusic() {
+        if (!musicBuffer) return;
+        let musicSource = audioContext.createBufferSource();
+        let musicGainNode = audioContext.createGain();
+        musicSource.buffer = musicBuffer;
+        musicSource.loop = true;
+        musicGainNode.gain.value = 0.5;
+        musicSource.connect(musicGainNode).connect(audioContext.destination);
+        musicSource.start(0);
+      }
+      async function loadSpinSound() {
+        const response = await fetch("spin.mp3");
+        const arrayBuffer = await response.arrayBuffer();
+        audioContext.decodeAudioData(arrayBuffer, (buffer) => {
+          spinBuffer = buffer;
+        });
+      }
+      function playSpinSound() {
+        if (!spinBuffer) return;
+        const sound = audioContext.createBufferSource();
+        sound.buffer = spinBuffer;
+        sound.connect(audioContext.destination);
+        sound.start(0);
+      }
+      function weightedRandom(chances) {
+        let randomValue = Math.random() * 100;
+        for (let i = 0; i < chances.length; i++) {
+          if (randomValue < chances[i]) {
+            return i; 
+          }
+          randomValue -= chances[i];
+        }
+      }
+
+
+      loadSpinSound();
+      loadMusic();
+      const backgroundImages = [];
+      const backgroundImagesPaths = ["./background.jpg"];
+      function loadBackgroundImages() {
+        let loadedCount = 0;
+        backgroundImagesPaths.forEach((path) => {
+          const img = new Image();
+          img.src = path;
+          img.onload = () => {
+            backgroundImages.push(img);
+            loadedCount++;
+            if (loadedCount === backgroundImagesPaths.length) {
+              loaded++;
+              setTimeout(() => {
+                requestAnimationFrame(gameLoop);
+              }, 1000);
+            }
+          };
+        });
+      }
+      loadBackgroundImages();
+      window.preloaded = false;
+      const preloadPromises = [
+        preloadGif("./swipe.gif", 32 * 8, 32 * 8),
+        preloadGif("./player_idle.gif", 32 * 8, 128 * 8),
+        preloadGif("./player_jump.gif", 32 * 8, 128 * 8),
+        preloadGif("./player_cheer.gif", 32 * 8, 128 * 8),
+      ];
+      Promise.all(preloadPromises)
+        .then(() => {
+          window.preloaded = true;
+        })
+        .catch((err) => {
+          console.error("Error preloading GIFs:", err);
+        });
+      function spinWheel() {
+        // const winningSegment = Math.floor(
+        //   Math.random() * wheelImagePaths.length
+        // );
+        const winningSegment = weightedRandom(chances);
+        
+        currentWinningGift = giftNames[winningSegment];
+        wheelAngle = 0;
+        const segmentAngleDegrees = winningSegment * 30 + 90;
+        const segmentAngleRadians = segmentAngleDegrees * (Math.PI / 180);
+        const totalRotations = 5 + Math.round(Math.random() * 3);
+        const finalAngle = totalRotations * 2 * Math.PI + segmentAngleRadians;
+        spinning = true;
+        let tickInterval = 20;
+        let tickTimer;
+        function playTickSoundLoop() {
+          playSpinSound();
+          if (tickInterval < 200) {
+            tickInterval += 5;
+            tickTimer = setTimeout(playTickSoundLoop, tickInterval);
+          }
+        }
+        playTickSoundLoop();
+        const spinDuration = 6000;
+        const startTime = performance.now();
+        function animateSpin(timestamp) {
+          const progress = (timestamp - startTime) / spinDuration + 0.1;
+          if (progress < 1) {
+            wheelAngle = -finalAngle * easeOutQuad(progress);
+            requestAnimationFrame(animateSpin);
+          } else {
+            wheelAngle = -finalAngle;
+            spinning = false;
+            isCheering = true;
+            cheer();
+            const winSound = document.getElementById("winSound");
+            winSound.currentTime = 0;
+            winSound.play();
+            clearTimeout(tickTimer);
+          }
+        }
+        requestAnimationFrame(animateSpin);
+      }
+      function easeOutQuad(t) {
+        return 1 - Math.pow(1 - t, 5);
+      }
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          canvas.requestFullscreen().catch((err) => {
+            console.error(
+              `Error attempting to enable fullscreen mode: ${err.message}`
+            );
+          });
+        }
+      }
+      window.addEventListener("load", () => {
+        canvas.addEventListener("click", toggleFullscreen);
+        canvas.addEventListener("touchend", toggleFullscreen);
+      });
+      let isMouseDown = false;
+      const particles = [];
+      class Particle {
+        constructor(x, y) {
+          this.x = Math.round(x);
+          this.y = Math.round(y);
+          this.size = 5;
+          this.speedX = (Math.random() - 0.5) * 2;
+          this.speedY = (Math.random() - 0.5) * 2;
+          this.opacity = 1;
+        }
+        update() {
+          this.x += this.speedX;
+          this.y += this.speedY;
+          this.opacity -= 0.02;
+        }
+        draw(ctx) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+          ctx.fillRect(Math.round(this.x), Math.round(this.y), 5, 5);
+        }
+      }
+      const wheelImages = [];
+      const wheelImagePaths = [
+              "./gift1.png",
+              "./gift2.png",
+              "./gift3.png",
+              "./gift4.png",
+              "./gift5.png",
+              "./gift6.png",
+              "./gift7.png",
+              "./gift8.png",
+              "./gift9.png",
+              "./gift10.png",
+              "./gift11.png",
+              "./gift12.png",
+      
+            ];
+            let currentWinningGift;
+               const giftNames = [
+              "an octocat",
+              "a hat",
+              "a shirt",
+              "keycaps",
+              "socks",
+              "a shirt",
+              "a belt bag",
+              "a pin",
+              "a pin",
+              "hip pack",
+              "a pennant",
+              "a shirt",
+      
+            ];
+      const chances = [
+       15.16545012,
+       2.433090024,
+       0.086618005,
+       0.099270073,
+       25.16545012,
+       0.07323601,
+       2.433090024,
+       0.24817518,
+       25.4136253,
+       0.00001,
+       5.7090024,
+       0.00005012,
+      ];
+      let loaded = 0;
+      function loadWheelImages() {
+        let loadedCount = 0;
+        wheelImagePaths.forEach((path, index) => {
+          const img = new Image();
+          img.src = path;
+          img.onload = () => {
+            wheelImages[index] = img;
+            loadedCount++;
+            if (loadedCount === wheelImagePaths.length) {
+              loaded++;
+            }
+          };
+        });
+      }
+      let wheelback = undefined;
+      function loadWheelback() {
+        const img = new Image();
+        img.src = "./orb.png";
+        img.onload = () => {
+          wheelback = img;
+        };
+      }
+      loadWheelback();
+      let ind = undefined;
+      function loadWheelback() {
+        const img = new Image();
+        img.src = "./indicator.png";
+        img.onload = () => {
+          ind = img;
+        };
+      }
+      loadWheelback();
+      loadWheelImages();
+      function drawWheelBackground() {
+        wheelBgCtx.clearRect(0, 0, wheelBgCanvas.width, wheelBgCanvas.height);
+        const centerX = Math.round(wheelBgCanvas.width / 2);
+        const centerY = Math.round(wheelBgCanvas.height / 2);
+        const outerRadius = 114 * 8; // 912
+        const innerRadius = 110 * 8; // 880
+        wheelBgCtx.beginPath();
+        wheelBgCtx.arc(centerX, centerY, outerRadius, 0, 2 * Math.PI);
+        wheelBgCtx.fillStyle = "#9c00ff";
+        wheelBgCtx.fill();
+        const segmentAngle = Math.PI / 6;
+        for (let i = 0; i < 12; i++) {
+          let startAngle = i * segmentAngle + wheelAngle;
+          let endAngle = (i + 1) * segmentAngle + wheelAngle;
+          wheelBgCtx.beginPath();
+          wheelBgCtx.moveTo(centerX, centerY);
+          wheelBgCtx.arc(centerX, centerY, innerRadius, startAngle, endAngle);
+          wheelBgCtx.closePath();
+          wheelBgCtx.fillStyle = i % 2 === 0 ? "#c54aff" : "#9c00ff";
+          wheelBgCtx.fill();
+        }
+        const dotRadius = 896;
+        for (let i = 0; i < 36; i++) {
+          let angle = (i * Math.PI) / 18 + wheelAngle;
+          let dotX = Math.round(centerX + Math.cos(angle) * dotRadius);
+          let dotY = Math.round(centerY + Math.sin(angle) * dotRadius);
+          wheelBgCtx.beginPath();
+          wheelBgCtx.arc(dotX, dotY, 10, 0, 10 * Math.PI);
+          wheelBgCtx.fillStyle = "#c54aff";
+          wheelBgCtx.fill();
+        }
+      }
+      function drawGifts() {
+        if (wheelImages.length < 12 || loaded < 2) return;
+        const centerX = 243 * 8;
+        const centerY = 70 * 8;
+        const giftRadius = 85 * 8;
+        const giftSize = 40 * 8;
+        for (let i = 0; i < 12; i++) {
+          let baseAngle = i * (Math.PI / 6) + Math.PI / 12;
+          let angle = baseAngle + wheelAngle;
+          let x = centerX + Math.round(Math.sin(angle) * giftRadius);
+          let y = centerY - Math.round(Math.cos(angle) * giftRadius);
+          ctx.drawImage(
+            wheelImages[i % wheelImages.length],
+            Math.round(x - giftSize / 2),
+            Math.round(y - giftSize / 2),
+            giftSize,
+            giftSize
+          );
+        }
+      }
+      function drawIndicator() {
+        ctx.imageSmoothingEnabled = true;
+        ctx.save();
+        ctx.translate(124 * 8, 68 * 8); // (992, 544)
+        ctx.beginPath();
+        ctx.moveTo(-6 * 8, -4 * 8);
+        ctx.quadraticCurveTo(-15 * 8, 0, -6 * 8, 4 * 8);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fillStyle = "#6357d8";
+        ctx.fill();
+        ctx.strokeStyle = "#242811";
+        ctx.stroke();
+        ctx.restore();
+      }
+      function createOffscreenTextCanvas(message, textColor = "white") {
+        const offscreenCanvas = document.createElement("canvas");
+        const offscreenCtx = offscreenCanvas.getContext("2d");
+        offscreenCtx.imageSmoothingEnabled = true;
+        offscreenCtx.font = "90px mona";
+        const metrics = offscreenCtx.measureText(message);
+        const textWidth = Math.ceil(metrics.width);
+        const textHeight = 100;
+        offscreenCanvas.width = textWidth;
+        offscreenCanvas.height = textHeight;
+        offscreenCtx.imageSmoothingEnabled = true;
+        offscreenCtx.font = "90px mona";
+        offscreenCtx.fillStyle = textColor;
+        offscreenCtx.textBaseline = "top";
+        offscreenCtx.fillText(message, 0, 0);
+        return offscreenCanvas;
+      }
+      let showtext = true;
+      function draw() {
+        if (window.preloaded) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(backgroundImages[0], backgroundFrame, 0, 1920, 1080);
+          ctx.drawImage(
+            backgroundImages[0],
+            backgroundFrame + 1920,
+            0,
+            1920,
+            1080
+          );
+          ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+          ctx.fillRect(0, 0, 360 * 8, 360 * 8);
+          if (isJumping) {
+            ctx.drawImage(
+              preloadedGifs["./player_jump.gif"].canvas,
+              80 * 8 + hmove,
+              -20 * 8 + vmove,
+              32 * 8,
+              128 * 8
+            );
+          } else if (isCheering) {
+            ctx.drawImage(
+              preloadedGifs["./player_cheer.gif"].canvas,
+              80 * 8 + hmove,
+              -20 * 8 + vmove,
+              32 * 8,
+              128 * 8
+            );
+            ctx.fillStyle = "white";
+            const message = `You won ${currentWinningGift}!`;
+            const textCanvas = createOffscreenTextCanvas(message, "white");
+            ctx.imageSmoothingEnabled = true;
+            const scaleFactor = 1;
+            const targetWidth = textCanvas.width * scaleFactor;
+            const targetHeight = textCanvas.height * scaleFactor;
+            if (frameCounter % 30 === 0) {
+              showtext = !showtext;
+            }
+            if (showtext) {
+              const x = (1100 - targetWidth) / 2;
+              const y = 120;
+              ctx.globalCompositeOperation = "hard-light";
+              ctx.drawImage(textCanvas, x, y, targetWidth, targetHeight);
+              ctx.globalCompositeOperation = "source-over";
+            }
+          } else {
+            if (!spinning) {
+              ctx.globalCompositeOperation = "screen";
+              ctx.drawImage(
+                preloadedGifs["./swipe.gif"].canvas,
+                100,
+                400,
+                400,
+                400
+              );
+              ctx.globalCompositeOperation = "source-over";
+            }
+            ctx.drawImage(
+              preloadedGifs["./player_idle.gif"].canvas,
+              80 * 8 + hmove,
+              -20 * 8 + vmove,
+              32 * 8,
+              128 * 8
+            );
+          }
+          drawWheelBackground();
+          ctx.globalCompositeOperation = "hard-light";
+          ctx.drawImage(wheelBgCanvas, (210 - 104 + 24) * 8, (58 - 104) * 8);
+          ctx.globalCompositeOperation = "source-over";
+          drawGifts();
+          if (wheelback != undefined) {
+            ctx.globalCompositeOperation = "overlay";
+            ctx.drawImage(
+              wheelback,
+              (220 - 119 + 20) * 8,
+              (68 - 119) * 8,
+              238 * 8,
+              238 * 8
+            );
+            ctx.globalCompositeOperation = "source-over";
+          }
+          if (ind != undefined) {
+            ctx.globalCompositeOperation = "screen";
+            ctx.drawImage(ind, 980, 440, 100, 100);
+            ctx.globalCompositeOperation = "source-over";
+          }
+          particles.forEach((particle) => {
+            particle.draw(ctx);
+          });
+        }
+      }
+      function update() {
+        particles.forEach((particle, index) => {
+          particle.update();
+          if (particle.opacity <= 0) {
+            particles.splice(index, 1);
+          }
+        });
+        frameCounter++;
+        if (frameCounter % 1 === 0) {
+          backgroundFrame = (backgroundFrame - 2) % 1920;
+        }
+
+        if (frameCounter % 2 === 0) {
+          hmove += hdirection;
+          if (hmove >= 4 * 8 || hmove <= -4 * 8) {
+            hdirection *= -1;
+          }
+        }
+        if (frameCounter % 3 === 0) {
+          vmove += vdirection;
+          if (vmove >= 4 * 8 || vmove <= -4 * 8) {
+            vdirection *= -1;
+          }
+        }
+      }
+      function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+      requestAnimationFrame(gameLoop);
+      function handleInput(x, y) {
+        for (let i = 0; i < 5; i++) {
+          particles.push(
+            new Particle(Math.round(x / scale), Math.round(y / scale))
+          );
+        }
+      }
+      canvas.addEventListener("mousemove", (e) => {
+        if (!spinning && !isCheering && isMouseDown) {
+          handleInput(e.pageX, e.pageY);
+        }
+      });
+      canvas.addEventListener("mousedown", (e) => {
+        if (!spinning && !isCheering) {
+          isMouseDown = true;
+          handleInput(e.pageX, e.pageY);
+          jump();
+        }
+      });
+      canvas.addEventListener("mouseup", () => {
+        isMouseDown = false;
+      });
+      canvas.addEventListener("touchmove", (e) => {
+        if (!spinning && !isCheering) {
+          const touch = e.touches[0];
+          handleInput(touch.pageX, touch.pageY);
+        }
+        e.preventDefault(); // Prevent scrolling
+      });
+      canvas.addEventListener("touchstart", (e) => {
+        if (!spinning && !isCheering) {
+          isMouseDown = true;
+          const touch = e.touches[0];
+          handleInput(touch.pageX, touch.pageY);
+          jump();
+        }
+        e.preventDefault();
+      });
+      canvas.addEventListener("touchend", (e) => {
+        isMouseDown = false;
+        e.preventDefault();
+      });
+      function resizeCanvas() {
+        scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        canvas.style.width = `${1920 * scale}px`;
+        canvas.style.height = `${1080 * scale}px`;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+      function jump() {
+        const jumpSound = document.getElementById("jumpSound");
+        jumpSound.currentTime = 0;
+        setTimeout(() => {
+          jumpSound.play();
+        }, 300);
+        preloadedGifs["./player_jump.gif"].animator.reset();
+        isJumping = true;
+        setTimeout(() => {
+          spinning = true;
+          spinWheel();
+        }, 1600);
+        setTimeout(() => {
+          preloadedGifs["./player_jump.gif"].animator.reset();
+          isJumping = false;
+        }, 1600);
+      }
+      function cheer() {
+        preloadedGifs["./player_cheer.gif"].animator.reset();
+        setTimeout(() => {
+          preloadedGifs["./player_cheer.gif"].animator.reset();
+          isCheering = false;
+        }, 3600);
+      }
+    </script>
+  </body>
+</html>
