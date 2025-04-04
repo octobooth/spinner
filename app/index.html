@@ -272,50 +272,28 @@
         }
       }
       const wheelImages = [];
-      const wheelImagePaths = [
-        "./images/prizes/octocat.png",
-        "./images/prizes/hat.png",
-        "./images/prizes/shirt1.png",
-        "./images/prizes/keycaps.png",
-        "./images/prizes/socks.png",
-        "./images/prizes/shirt2.png",
-        "./images/prizes/belt_bag.png",
-        "./images/prizes/pin1.png",
-        "./images/prizes/pin2.png",
-        "./images/prizes/hip_pack.png",
-        "./images/prizes/pennant.png",
-        "./images/prizes/shirt3.png"
+      const prizes = [
+        { name: "an octocat", quantity: 400, path: "octocat.png" },
+        { name: "a hat", quantity: 500, path: "hat.png" },
+        { name: "a shirt", quantity: 400, path: "shirt1.png" },
+        { name: "keycaps", quantity: 1000, path: "keycaps.png" },
+        { name: "socks", quantity: 500, path: "socks.png" },
+        { name: "a shirt", quantity: 400, path: "shirt2.png" },
+        { name: "a belt bag", quantity: 100, path: "belt_bag.png" },
+        { name: "a pin", quantity: 2000, path: "pin1.png" },
+        { name: "a pin", quantity: 2000, path: "pin2.png" },
+        { name: "hip pack", quantity: 100, path: "hip_pack.png" },
+        { name: "a pennant", quantity: 2000, path: "pennant.png" },
+        { name: "a shirt", quantity: 400, path: "shirt3.png" }
       ];
-      let currentWinningGift;
-      const giftNames = [
-        "an octocat",
-        "a hat",
-        "a shirt",
-        "keycaps",
-        "socks",
-        "a shirt",
-        "a belt bag",
-        "a pin",
-        "a pin",
-        "hip pack",
-        "a pennant",
-        "a shirt"
-      ];
-      const giftInitialStock = [
-        400,  // octocat
-        500,  // hat
-        400,  // shirt
-        1000, // keycaps
-        500,  // socks
-        400,  // shirt
-        100,  // belt bag
-        2000, // pin
-        2000, // pin
-        100,  // hip pack
-        2000, // pennant
-        400   // shirt
-      ];
+      
+      // Extract data from prizes collection for easier use
+      const wheelImagePaths = prizes.map(prize => `./images/prizes/${prize.path}`);
+      const giftNames = prizes.map(prize => prize.name);
+      const giftInitialStock = prizes.map(prize => prize.quantity);
             
+      let currentWinningGift;
+      
       // Calculate probabilities based on initial stock
       const totalStockCount = giftInitialStock.reduce((sum, stock) => sum + stock, 0);
       const chances = giftInitialStock.map(stock => (stock / totalStockCount) * 100);
