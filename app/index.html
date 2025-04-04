@@ -52,11 +52,9 @@
         .catch((error) => {
           console.error("Font failed to load:", error);
         });
-      let lastGift1Time = 0;
-      const giftCooldown = 30 * 60 * 1000;
       let audioContext = new (window.AudioContext ||
         window.webkitAudioContext)();
-      let spinBuffer, musicBuffer;
+      let spinBuffer;
       let wheelAngle = 0;
       let spinning = false;
       let isJumping = false;
@@ -68,6 +66,43 @@
       let hdirection = 1;
       let vdirection = 1;
       let scale = 1;
+      let spinCounter = 0; // Counter for tracking number of spins
+      const RELOAD_FREQUENCY = 10; // Reload prizes data every 10 spins
+
+      // Variables for prizes data
+      let prizes = [];
+      let wheelImagePaths = [];
+      let wheelImages = []; // Array to hold wheel image objects
+      let giftNames = [];
+      let giftInitialStock = [];
+      let chances = [];
+      let currentWinningGift;
+      
+      // Function to load prizes data
+      async function loadPrizesData() {
+        try {
+          const response = await fetch('prizes.js');
+          const data = await response.text();
+          prizes = JSON.parse(data);
+          
+          // Extract data from prizes collection for easier use
+          wheelImagePaths = prizes.map(prize => `./images/prizes/${prize.path}`);
+          giftNames = prizes.map(prize => prize.name);
+          giftInitialStock = prizes.map(prize => prize.quantity);
+          
+          // Calculate probabilities based on initial stock
+          const totalStockCount = giftInitialStock.reduce((sum, stock) => sum + stock, 0);
+          chances = giftInitialStock.map(stock => (stock / totalStockCount) * 100);
+          
+          // Load wheel images if needed
+          loadWheelImages();
+          
+          console.log("Prizes data loaded successfully");
+        } catch (error) {
+          console.error("Error loading prizes data:", error);
+        }
+      }
+
       const preloadedGifs = {};
       function preloadGif(url, width, height) {
         return new Promise((resolve, reject) => {
@@ -102,24 +137,6 @@
       wheelBgCanvas.height = 228 * 8; // 1824
       wheelBgCanvas.opacity = 0.1;
       const wheelBgCtx = wheelBgCanvas.getContext("2d");
-      async function loadMusic() {
-        const response = await fetch("music.mp3");
-        const arrayBuffer = await response.arrayBuffer();
-        audioContext.decodeAudioData(arrayBuffer, (buffer) => {
-          musicBuffer = buffer;
-          playBackgroundMusic();
-        });
-      }
-      function playBackgroundMusic() {
-        if (!musicBuffer) return;
-        let musicSource = audioContext.createBufferSource();
-        let musicGainNode = audioContext.createGain();
-        musicSource.buffer = musicBuffer;
-        musicSource.loop = true;
-        musicGainNode.gain.value = 0.5;
-        musicSource.connect(musicGainNode).connect(audioContext.destination);
-        musicSource.start(0);
-      }
       async function loadSpinSound() {
         const response = await fetch("spin.mp3");
         const arrayBuffer = await response.arrayBuffer();
@@ -156,7 +173,6 @@
 
 
       loadSpinSound();
-      loadMusic();
       const backgroundImages = [];
       const backgroundImagesPaths = ["./background.jpg"];
       function loadBackgroundImages() {
@@ -192,9 +208,12 @@
           console.error("Error preloading GIFs:", err);
         });
       function spinWheel() {
-        // const winningSegment = Math.floor(
-        //   Math.random() * wheelImagePaths.length
-        // );
+        // Reload prizes data every RELOAD_FREQUENCY spins
+        spinCounter++;
+        if (spinCounter % RELOAD_FREQUENCY === 0) {
+          loadPrizesData();
+        }
+
         const winningSegment = weightedRandom(chances);
         
         currentWinningGift = giftNames[winningSegment];
@@ -271,32 +290,6 @@
           ctx.fillRect(Math.round(this.x), Math.round(this.y), 5, 5);
         }
       }
-      const wheelImages = [];
-      const prizes = [
-        { name: "an octocat", quantity: 400, path: "octocat.png" },
-        { name: "a hat", quantity: 500, path: "hat.png" },
-        { name: "a shirt", quantity: 400, path: "shirt1.png" },
-        { name: "keycaps", quantity: 1000, path: "keycaps.png" },
-        { name: "socks", quantity: 500, path: "socks.png" },
-        { name: "a shirt", quantity: 400, path: "shirt2.png" },
-        { name: "a belt bag", quantity: 100, path: "belt_bag.png" },
-        { name: "a pin", quantity: 2000, path: "pin1.png" },
-        { name: "a pin", quantity: 2000, path: "pin2.png" },
-        { name: "hip pack", quantity: 100, path: "hip_pack.png" },
-        { name: "a pennant", quantity: 2000, path: "pennant.png" },
-        { name: "a shirt", quantity: 400, path: "shirt3.png" }
-      ];
-      
-      // Extract data from prizes collection for easier use
-      const wheelImagePaths = prizes.map(prize => `./images/prizes/${prize.path}`);
-      const giftNames = prizes.map(prize => prize.name);
-      const giftInitialStock = prizes.map(prize => prize.quantity);
-            
-      let currentWinningGift;
-      
-      // Calculate probabilities based on initial stock
-      const totalStockCount = giftInitialStock.reduce((sum, stock) => sum + stock, 0);
-      const chances = giftInitialStock.map(stock => (stock / totalStockCount) * 100);
       let loaded = 0;
       function loadWheelImages() {
         let loadedCount = 0;
@@ -330,7 +323,6 @@
         };
       }
       loadWheelback();
-      loadWheelImages();
       function drawWheelBackground() {
         wheelBgCtx.clearRect(0, 0, wheelBgCanvas.width, wheelBgCanvas.height);
         const centerX = Math.round(wheelBgCanvas.width / 2);
@@ -614,6 +606,8 @@
           isCheering = false;
         }, 3600);
       }
+      // Load prizes data initially
+      loadPrizesData();
     </script>
   </body>
 </html>
