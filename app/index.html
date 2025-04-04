@@ -135,13 +135,23 @@
         sound.start(0);
       }
       function weightedRandom(chances) {
-        let randomValue = Math.random() * 100;
+        // Calculate the total of all probability values
+        const total = chances.reduce((sum, chance) => sum + chance, 0);
+        
+        // Generate a random number between 0 and the total
+        let randomValue = Math.random() * total;
+        let cumulativeChance = 0;
+        
+        // Find which segment the random value falls into
         for (let i = 0; i < chances.length; i++) {
-          if (randomValue < chances[i]) {
-            return i; 
+          cumulativeChance += chances[i];
+          if (randomValue <= cumulativeChance) {
+            return i;
           }
-          randomValue -= chances[i];
         }
+        
+        // Fallback to prevent undefined - return the last index
+        return chances.length - 1;
       }
 
 
@@ -263,50 +273,52 @@
       }
       const wheelImages = [];
       const wheelImagePaths = [
-              "./gift1.png",
-              "./gift2.png",
-              "./gift3.png",
-              "./gift4.png",
-              "./gift5.png",
-              "./gift6.png",
-              "./gift7.png",
-              "./gift8.png",
-              "./gift9.png",
-              "./gift10.png",
-              "./gift11.png",
-              "./gift12.png",
-      
-            ];
-            let currentWinningGift;
-               const giftNames = [
-              "an octocat",
-              "a hat",
-              "a shirt",
-              "keycaps",
-              "socks",
-              "a shirt",
-              "a belt bag",
-              "a pin",
-              "a pin",
-              "hip pack",
-              "a pennant",
-              "a shirt",
-      
-            ];
-      const chances = [
-       15.16545012,
-       2.433090024,
-       0.086618005,
-       0.099270073,
-       25.16545012,
-       0.07323601,
-       2.433090024,
-       0.24817518,
-       25.4136253,
-       0.00001,
-       5.7090024,
-       0.00005012,
+        "./images/prizes/octocat.png",
+        "./images/prizes/hat.png",
+        "./images/prizes/shirt1.png",
+        "./images/prizes/keycaps.png",
+        "./images/prizes/socks.png",
+        "./images/prizes/shirt2.png",
+        "./images/prizes/belt_bag.png",
+        "./images/prizes/pin1.png",
+        "./images/prizes/pin2.png",
+        "./images/prizes/hip_pack.png",
+        "./images/prizes/pennant.png",
+        "./images/prizes/shirt3.png"
       ];
+      let currentWinningGift;
+      const giftNames = [
+        "an octocat",
+        "a hat",
+        "a shirt",
+        "keycaps",
+        "socks",
+        "a shirt",
+        "a belt bag",
+        "a pin",
+        "a pin",
+        "hip pack",
+        "a pennant",
+        "a shirt"
+      ];
+      const giftInitialStock = [
+        400,  // octocat
+        500,  // hat
+        400,  // shirt
+        1000, // keycaps
+        500,  // socks
+        400,  // shirt
+        100,  // belt bag
+        2000, // pin
+        2000, // pin
+        100,  // hip pack
+        2000, // pennant
+        400   // shirt
+      ];
+            
+      // Calculate probabilities based on initial stock
+      const totalStockCount = giftInitialStock.reduce((sum, stock) => sum + stock, 0);
+      const chances = giftInitialStock.map(stock => (stock / totalStockCount) * 100);
       let loaded = 0;
       function loadWheelImages() {
         let loadedCount = 0;
