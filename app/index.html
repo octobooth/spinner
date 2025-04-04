@@ -30,19 +30,19 @@
       }
       @font-face {
         font-family: "mona";
-        src: url("MonaSans-Bold.ttf") format("truetype");
+        src: url("resources/MonaSans-Bold.ttf") format("truetype");
       }
     </style>
   </head>
   <body>
-    <audio id="winSound" src="win.mp3" preload="auto"></audio>
-    <audio id="jumpSound" src="jump.mp3" preload="auto"></audio>
+    <audio id="winSound" src="resources/win.mp3" preload="auto"></audio>
+    <audio id="jumpSound" src="resources/jump.mp3" preload="auto"></audio>
     <canvas id="gameCanvas" width="1920" height="1080"></canvas>
     <script src="./gifler.min.js"></script>
     <script>
       const monafont = new FontFace(
         "mona",
-        'url(MonaSans-Bold.ttf) format("truetype")'
+        'url(resources/MonaSans-Bold.ttf) format("truetype")'
       );
       monafont
         .load()
@@ -138,7 +138,7 @@
       wheelBgCanvas.opacity = 0.1;
       const wheelBgCtx = wheelBgCanvas.getContext("2d");
       async function loadSpinSound() {
-        const response = await fetch("spin.mp3");
+        const response = await fetch("resources/spin.mp3");
         const arrayBuffer = await response.arrayBuffer();
         audioContext.decodeAudioData(arrayBuffer, (buffer) => {
           spinBuffer = buffer;
@@ -174,7 +174,7 @@
 
       loadSpinSound();
       const backgroundImages = [];
-      const backgroundImagesPaths = ["./background.jpg"];
+      const backgroundImagesPaths = ["./images/background.jpg"];
       function loadBackgroundImages() {
         let loadedCount = 0;
         backgroundImagesPaths.forEach((path) => {
@@ -195,10 +195,10 @@
       loadBackgroundImages();
       window.preloaded = false;
       const preloadPromises = [
-        preloadGif("./swipe.gif", 32 * 8, 32 * 8),
-        preloadGif("./player_idle.gif", 32 * 8, 128 * 8),
-        preloadGif("./player_jump.gif", 32 * 8, 128 * 8),
-        preloadGif("./player_cheer.gif", 32 * 8, 128 * 8),
+        preloadGif("./images/swipe.gif", 32 * 8, 32 * 8),
+        preloadGif("./images/player_idle.gif", 32 * 8, 128 * 8),
+        preloadGif("./images/player_jump.gif", 32 * 8, 128 * 8),
+        preloadGif("./images/player_cheer.gif", 32 * 8, 128 * 8),
       ];
       Promise.all(preloadPromises)
         .then(() => {
@@ -308,7 +308,7 @@
       let wheelback = undefined;
       function loadWheelback() {
         const img = new Image();
-        img.src = "./orb.png";
+        img.src = "./images/orb.png";
         img.onload = () => {
           wheelback = img;
         };
@@ -317,7 +317,7 @@
       let ind = undefined;
       function loadWheelback() {
         const img = new Image();
-        img.src = "./indicator.png";
+        img.src = "./images/indicator.png";
         img.onload = () => {
           ind = img;
         };
@@ -423,7 +423,7 @@
           ctx.fillRect(0, 0, 360 * 8, 360 * 8);
           if (isJumping) {
             ctx.drawImage(
-              preloadedGifs["./player_jump.gif"].canvas,
+              preloadedGifs["./images/player_jump.gif"].canvas,
               80 * 8 + hmove,
               -20 * 8 + vmove,
               32 * 8,
@@ -431,7 +431,7 @@
             );
           } else if (isCheering) {
             ctx.drawImage(
-              preloadedGifs["./player_cheer.gif"].canvas,
+              preloadedGifs["./images/player_cheer.gif"].canvas,
               80 * 8 + hmove,
               -20 * 8 + vmove,
               32 * 8,
@@ -458,7 +458,7 @@
             if (!spinning) {
               ctx.globalCompositeOperation = "screen";
               ctx.drawImage(
-                preloadedGifs["./swipe.gif"].canvas,
+                preloadedGifs["./images/swipe.gif"].canvas,
                 100,
                 400,
                 400,
@@ -467,7 +467,7 @@
               ctx.globalCompositeOperation = "source-over";
             }
             ctx.drawImage(
-              preloadedGifs["./player_idle.gif"].canvas,
+              preloadedGifs["./images/player_idle.gif"].canvas,
               80 * 8 + hmove,
               -20 * 8 + vmove,
               32 * 8,
@@ -588,21 +588,21 @@
         setTimeout(() => {
           jumpSound.play();
         }, 300);
-        preloadedGifs["./player_jump.gif"].animator.reset();
+        preloadedGifs["./images/player_jump.gif"].animator.reset();
         isJumping = true;
         setTimeout(() => {
           spinning = true;
           spinWheel();
         }, 1600);
         setTimeout(() => {
-          preloadedGifs["./player_jump.gif"].animator.reset();
+          preloadedGifs["./images/player_jump.gif"].animator.reset();
           isJumping = false;
         }, 1600);
       }
       function cheer() {
-        preloadedGifs["./player_cheer.gif"].animator.reset();
+        preloadedGifs["./images/player_cheer.gif"].animator.reset();
         setTimeout(() => {
-          preloadedGifs["./player_cheer.gif"].animator.reset();
+          preloadedGifs["./images/player_cheer.gif"].animator.reset();
           isCheering = false;
         }, 3600);
       }
