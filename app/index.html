@@ -257,10 +257,10 @@
           function animateSpin(timestamp) {
             const progress = (timestamp - startTime) / spinDuration + 0.1;
             if (progress < 1) {
-              wheelAngle = -finalAngle * easeOutQuad(progress);
+              wheelAngle = -finalAngle * easeOutQuad(progress); 
               requestAnimationFrame(animateSpin);
             } else {
-              wheelAngle = -finalAngle;
+              wheelAngle = -finalAngle; 
               spinning = false;
               isCheering = true;
               cheer();
@@ -417,10 +417,10 @@
           offscreenCtx.imageSmoothingEnabled = false;
 
           // Use a larger pixelated font
-          offscreenCtx.font = "120px 'Press Start 2P', mona"; // Increased font size
+          offscreenCtx.font = "60px 'Press Start 2P', mona"; // Increased font size
           const metrics = offscreenCtx.measureText(message);
           const textWidth = Math.ceil(metrics.width);
-          const textHeight = 80; // Increased height to match larger font
+          const textHeight = Math.max(80, Math.ceil(metrics.height)); // Ensure textHeight is at least 80
 
           offscreenCanvas.width = textWidth;
           offscreenCanvas.height = textHeight;
@@ -465,18 +465,18 @@
               );
               ctx.fillStyle = "white";
               // Create winning text display with pixelated font and purple background
-              if (frameCounter % 30 === 0) {
+              if (frameCounter % 60 === 0) {
                 showtext = !showtext;
               }
               if (showtext) {
                 const message = `You won ${currentWinningGift}!`;
                 
                 // Create background rectangle
-                const padding = 20;
-                ctx.font = "60px 'Press Start 2P', mona";
+                const padding = 30;
+                ctx.font = "45px 'Press Start 2P', mona";
                 const metrics = ctx.measureText(message);
                 const textWidth = Math.ceil(metrics.width);
-                const textHeight = 80;
+                const textHeight = 50;
                 
                 // Calculate the position with 10% margin from top and left
                 const x = Math.round(1920 * 0.1); // 10% from the left
@@ -485,10 +485,14 @@
                 // Draw purple semi-transparent background
                 ctx.fillStyle = "rgba(156, 0, 255, 0.75)"; // Purple with 75% opacity
                 ctx.fillRect(x - padding, y - padding, textWidth + (padding * 2), textHeight + (padding * 2));
+                // Draw a 2px width white border 10px inside the rectangle
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x - padding + 10, y - padding + 10, textWidth + (padding * 2) - 20, textHeight + (padding * 2) - 20);
                 
                 // Draw pixelated text
                 ctx.fillStyle = "white";
-                ctx.font = "60px 'Press Start 2P', mona";
+                //ctx.font = "45px 'Press Start 2P', mona"; // Increased font size
                 ctx.textBaseline = "top";
                 ctx.imageSmoothingEnabled = false; // Ensure pixelated look
                 ctx.fillText(message, x, y);
