@@ -1,5 +1,4 @@
 # Copilot Prize Wheel
-
 An interactive web-based prize wheel game where users can swipe to spin and win various prizes.
 
 ## Overview
@@ -13,17 +12,5 @@ Prizes are configured in the `prizes.js` file as a JSON array of objects, each w
 - `quantity`: Available inventory (affects probability of winning)
 - `path`: Image file path in the images/prizes directory
 
-The system automatically calculates winning probabilities based on the quantity values.
+The system automatically calculates winning probabilities based on the quantity values. You can adjust the quantities to change the odds of winning specific prizes and the probabilities will adjust every 10 spins based on the current state of `prizes.js`.  This allows you to dyanamically change the odds of winning specific prizes without having to restart the app at the booth.
 
-## Technical Details
-
-- Pure JavaScript with no external dependencies (except gifler.min.js for GIF animations)
-- HTML5 Canvas for rendering
-- Web Audio API for sound effects
-- Touch and mouse event support
-- Custom font implementation with MonaSans-Bold
-
-## Requirements
-
-- Modern web browser with HTML5 support
-- JavaScript enabled
