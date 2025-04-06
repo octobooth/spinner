@@ -617,6 +617,16 @@
           isMouseDown = false;
           e.preventDefault();
         });
+        
+        // Add keyboard event listener to spin the wheel when any key is pressed
+        window.addEventListener("keydown", (e) => {
+          // Only respond if not already spinning or cheering
+          if (!spinning && !isCheering) {
+            jump();
+          }
+          e.preventDefault(); // Prevent scrolling with arrow keys
+        });
+        
         function resizeCanvas() {
           scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
           canvas.style.width = `${1920 * scale}px`;
