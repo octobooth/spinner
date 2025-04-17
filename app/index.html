@@ -252,7 +252,8 @@
             }
           }
           playTickSoundLoop();
-          const spinDuration = 6000;
+          // Random spin duration between 5 and 15 seconds (5000ms and 15000ms)
+          const spinDuration = Math.floor(Math.random() * (15000 - 5000 + 1)) + 5000;
           const startTime = performance.now();
           function animateSpin(timestamp) {
             const progress = (timestamp - startTime) / spinDuration + 0.1;
