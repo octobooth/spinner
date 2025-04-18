@@ -247,13 +247,18 @@
           function playTickSoundLoop() {
             playSpinSound();
             if (tickInterval < 200) {
+              // Start fast, but gradually slow down
               tickInterval += 5;
-              tickTimer = setTimeout(playTickSoundLoop, tickInterval);
+            } else {
+              // Slow down faster as it approaches the end
+              tickInterval += tickInterval * 0.4;
             }
+            // Keep playing at current interval for as long as the wheel is spinning
+            tickTimer = setTimeout(playTickSoundLoop, tickInterval);
           }
           playTickSoundLoop();
-          // Random spin duration between 5 and 15 seconds (5000ms and 15000ms)
-          const spinDuration = Math.floor(Math.random() * (15000 - 5000 + 1)) + 5000;
+          // Random spin duration between 3 and 15 seconds (3000ms and 15000ms)
+          const spinDuration = Math.floor(Math.random() * (15000 - 3000 + 1)) + 3000;
           const startTime = performance.now();
           function animateSpin(timestamp) {
             const progress = (timestamp - startTime) / spinDuration + 0.1;
@@ -505,7 +510,7 @@
                 ctx.drawImage(
                   preloadedGifs["./images/swipe.gif"].canvas,
                   100,
-                  400,
+                  480,
                   400,
                   400
                 );
