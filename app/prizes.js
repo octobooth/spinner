@@ -5,7 +5,7 @@
   { "name": "a belt bag", "quantity": 10, "path": "belt_bag.png" },
   { "name": "a $100 coupon", "quantity": 10, "path": "coupon_100.png" },
   { "name": "hip pack", "quantity": 5, "path": "hip_pack.png" },
-  { "name": "a $100 coupon", "quantity": 10, "path": "coupon_100.png" },
+  { "name": "a signed book", "quantity": 50, "path": "accelerate.png" },
   { "name": "a figurine", "quantity": 5, "path": "mona.png" },
   { "name": "a $100 coupon", "quantity": 10, "path": "coupon_100.png" },
   { "name": "a hat", "quantity": 10, "path": "hat2.png" },
