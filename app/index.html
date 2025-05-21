@@ -625,9 +625,14 @@
         });
         
         // Add keyboard event listener to spin the wheel when any key is pressed
+        let lastKeyDownTime = 0;
+        const keyDebounceTime = 3000; // 3 second debounce time
+
         window.addEventListener("keydown", (e) => {
-          // Only respond if not already spinning or cheering
-          if (!spinning && !isCheering) {
+          const currentTime = Date.now();
+          // Only respond if not already spinning or cheering AND debounce time has passed
+          if (!spinning && !isCheering && (currentTime - lastKeyDownTime > keyDebounceTime)) {
+            lastKeyDownTime = currentTime; // Update the last keydown time
             jump();
           }
           e.preventDefault(); // Prevent scrolling with arrow keys
@@ -643,13 +648,13 @@
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
         function jump() {
+          isJumping = true;
           const jumpSound = document.getElementById("jumpSound");
           jumpSound.currentTime = 0;
           setTimeout(() => {
             jumpSound.play();
           }, 300);
           preloadedGifs["./images/player_jump.gif"].animator.reset();
-          isJumping = true;
           setTimeout(() => {
             spinning = true;
             spinWheel();
