@@ -14,5 +14,4 @@ Prizes are configured in the `prizes.js` file as a JSON array of objects, each w
 
 The system automatically calculates winning probabilities based on the quantity values. You can adjust the quantities to change the odds of winning specific prizes and the probabilities will adjust every 10 spins based on the current state of `prizes.js`.  This allows you to dyanamically change the odds of winning specific prizes without having to restart the app at the booth.
 
-At the moment you MUST have 12 prizes, therefore duplicate prizes if you have less than 12 different prizes to give away.
-
+At stock levels are noted when the browser window is refreshed and probabilities continuously adjusted to ensure all the prizes are handed out.  For most accurate distribution of all prizes, update prizes.js before each day of play based on actual stock quantity and refresh the browser.
