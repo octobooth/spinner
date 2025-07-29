@@ -39,6 +39,7 @@
     <audio id="winSound" src="resources/win.mp3" preload="auto"></audio>
     <audio id="jumpSound" src="resources/jump.mp3" preload="auto"></audio>
     <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+    <script src="./prizes.js"></script>
     <script src="./gifler.min.js"></script>
     <script>
       // Preload both fonts before initializing the game
@@ -88,38 +89,249 @@
         let spinCounter = 0; // Counter for tracking number of spins
         const RELOAD_FREQUENCY = 10; // Reload prizes data every 10 spins
 
+        // Prize Management System
+        class PrizeManager {
+          constructor(prizeData) {
+            // Generate IDs automatically from the path or create unique IDs
+            this.masterPrizes = prizeData.map((prize, index) => ({
+              ...prize,
+              id: prize.path.split('.')[0] || `prize_${index}` // Use filename without extension as ID, fallback to index
+            }));
+            this.remainingPrizes = JSON.parse(JSON.stringify(this.masterPrizes));
+            this.currentWheelPrizes = [];
+            this.MAX_SLOTS = 12;
+            this.generateWheel();
+          }
+          
+          getAvailablePrizes() {
+            return this.remainingPrizes.filter(prize => prize.quantity > 0);
+          }
+          
+          generateWheel() {
+            const availablePrizes = this.getAvailablePrizes();
+            
+            if (availablePrizes.length === 0) {
+              console.log("No prizes remaining!");
+              return;
+            }
+            
+            this.currentWheelPrizes = [];
+            
+            if (availablePrizes.length <= this.MAX_SLOTS) {
+              this.distributeFewerPrizes(availablePrizes);
+            } else {
+              this.selectRandomPrizes(availablePrizes);
+            }
+          }
+          
+          distributeFewerPrizes(availablePrizes) {
+            const totalQuantity = availablePrizes.reduce((sum, prize) => sum + prize.quantity, 0);
+            const slotsPerPrize = availablePrizes.map(prize => ({
+              ...prize,
+              slots: Math.max(1, Math.round((prize.quantity / totalQuantity) * this.MAX_SLOTS))
+            }));
+            
+            let totalSlots = slotsPerPrize.reduce((sum, prize) => sum + prize.slots, 0);
+            while (totalSlots > this.MAX_SLOTS) {
+              const maxPrize = slotsPerPrize.reduce((max, prize) => prize.slots > max.slots ? prize : max);
+              maxPrize.slots = Math.max(1, maxPrize.slots - 1);
+              totalSlots--;
+            }
+            while (totalSlots < this.MAX_SLOTS) {
+              const highestQuantityPrize = slotsPerPrize.reduce((max, prize) => 
+                prize.quantity > max.quantity ? prize : max);
+              highestQuantityPrize.slots++;
+              totalSlots++;
+            }
+            
+            const wheelSlots = [];
+            slotsPerPrize.forEach(prize => {
+              for (let i = 0; i < prize.slots; i++) {
+                wheelSlots.push({...prize});
+              }
+            });
+            
+            this.currentWheelPrizes = this.distributeToMinimizeAdjacent(wheelSlots);
+          }
+          
+          selectRandomPrizes(availablePrizes) {
+            const weightedPool = [];
+            availablePrizes.forEach(prize => {
+              for (let i = 0; i < prize.quantity; i++) {
+                weightedPool.push({...prize});
+              }
+            });
+            
+            this.currentWheelPrizes = [];
+            for (let i = 0; i < this.MAX_SLOTS; i++) {
+              const randomIndex = Math.floor(Math.random() * weightedPool.length);
+              this.currentWheelPrizes.push(weightedPool[randomIndex]);
+            }
+            
+            this.currentWheelPrizes = this.distributeToMinimizeAdjacent(this.currentWheelPrizes);
+          }
+          
+          distributeToMinimizeAdjacent(prizes) {
+            if (prizes.length <= 1) return prizes;
+            
+            const arranged = [prizes[0]];
+            const remaining = prizes.slice(1);
+            
+            while (remaining.length > 0) {
+              let bestIndex = 0;
+              let bestScore = -1;
+              
+              for (let i = 0; i < remaining.length; i++) {
+                let score = 0;
+                const currentPrize = remaining[i];
+                
+                if (arranged[arranged.length - 1].id !== currentPrize.id) {
+                  score += 2;
+                }
+                
+                if (remaining.length === 1 && arranged[0].id !== currentPrize.id) {
+                  score += 2;
+                }
+                
+                score += Math.random();
+                
+                if (score > bestScore) {
+                  bestScore = score;
+                  bestIndex = i;
+                }
+              }
+              
+              arranged.push(remaining.splice(bestIndex, 1)[0]);
+            }
+            
+            return arranged;
+          }
+          
+          getWheelConfiguration() {
+            return this.currentWheelPrizes.map(prize => ({
+              name: prize.name,
+              path: prize.path,
+              id: prize.id
+            }));
+          }
+          
+          getProbabilities() {
+            if (this.currentWheelPrizes.length === 0) return [];
+            
+            return this.currentWheelPrizes.map(wheelPrize => {
+              const remainingPrize = this.remainingPrizes.find(p => p.id === wheelPrize.id);
+              if (!remainingPrize || remainingPrize.quantity <= 0) {
+                return 0;
+              }
+              
+              const totalRemaining = this.remainingPrizes.reduce((sum, p) => sum + p.quantity, 0);
+              return (remainingPrize.quantity / totalRemaining) * 100;
+            });
+          }
+          
+          recordWin(slotIndex) {
+            if (slotIndex < 0 || slotIndex >= this.currentWheelPrizes.length) {
+              console.error("Invalid slot index:", slotIndex);
+              return null;
+            }
+            
+            const wonPrize = this.currentWheelPrizes[slotIndex];
+            const remainingPrize = this.remainingPrizes.find(p => p.id === wonPrize.id);
+            
+            if (!remainingPrize || remainingPrize.quantity <= 0) {
+              console.error("Prize out of stock:", wonPrize.name);
+              return null;
+            }
+            
+            remainingPrize.quantity--;
+            
+            if (remainingPrize.quantity === 0) {
+              console.log(`${wonPrize.name} is now out of stock. Regenerating wheel...`);
+              this.generateWheel();
+            }
+            
+            return wonPrize;
+          }
+          
+          getTotalRemainingCount() {
+            return this.remainingPrizes.reduce((sum, prize) => sum + prize.quantity, 0);
+          }
+          
+          getStatus() {
+            const total = this.masterPrizes.reduce((sum, prize) => sum + prize.quantity, 0);
+            const remaining = this.getTotalRemainingCount();
+            const distributed = total - remaining;
+            
+            return {
+              totalPrizes: total,
+              remainingPrizes: remaining,
+              distributedPrizes: distributed,
+              availablePrizeTypes: this.getAvailablePrizes().length,
+              currentWheelSlots: this.currentWheelPrizes.length
+            };
+          }
+          
+          // Reset all prizes to their original quantities
+          resetStock() {
+            console.log("Resetting all prize quantities to original values...");
+            this.remainingPrizes = JSON.parse(JSON.stringify(this.masterPrizes));
+            this.generateWheel();
+            console.log("Stock reset complete:", this.getStatus());
+          }
+        }
+
         // Variables for prizes data
-        let prizes = [];
+        let prizeManager;
         let wheelImagePaths = [];
         let wheelImages = []; // Array to hold wheel image objects
         let giftNames = [];
-        let giftInitialStock = [];
         let chances = [];
         let currentWinningGift;
+        let currentWinningSlot;
         
         // Function to load prizes data
         async function loadPrizesData() {
           try {
-            const response = await fetch('prizes.js');
-            const data = await response.text();
-            prizes = JSON.parse(data);
+            // If PRIZE_DATA is already available, use it
+            if (window.PRIZE_DATA) {
+              // Initialize or update prize manager
+              if (!prizeManager) {
+                prizeManager = new PrizeManager(window.PRIZE_DATA);
+                updateWheelFromPrizeManager();
+              } else {
+                // Prize manager exists, just update the wheel display
+                updateWheelFromPrizeManager();
+              }
+            } else {
+              console.error("PRIZE_DATA not found - make sure prizes.js is loaded");
+            }
             
-            // Extract data from prizes collection for easier use
-            wheelImagePaths = prizes.map(prize => `./images/prizes/${prize.path}`);
-            giftNames = prizes.map(prize => prize.name);
-            giftInitialStock = prizes.map(prize => prize.quantity);
-            
-            // Calculate probabilities based on initial stock
-            const totalStockCount = giftInitialStock.reduce((sum, stock) => sum + stock, 0);
-            chances = giftInitialStock.map(stock => (stock / totalStockCount) * 100);
-            
-            // Load wheel images if needed
-            loadWheelImages();
-            
-            console.log("Prizes data loaded successfully");
           } catch (error) {
             console.error("Error loading prizes data:", error);
           }
+        }
+        
+        function updateWheelFromPrizeManager() {
+          if (!prizeManager) {
+            console.error("Prize manager not initialized");
+            return;
+          }
+          
+          // Get current wheel configuration
+          const wheelConfig = prizeManager.getWheelConfiguration();
+          
+          // Extract data from wheel configuration
+          wheelImagePaths = wheelConfig.map(prize => `./images/prizes/${prize.path}`);
+          giftNames = wheelConfig.map(prize => prize.name);
+          
+          // Get current probabilities based on remaining stock
+          chances = prizeManager.getProbabilities();
+          
+          // Load wheel images
+          loadWheelImages();
+          
+          console.log("Prizes data loaded successfully");
+          console.log("Prize status:", prizeManager.getStatus());
         }
 
         const preloadedGifs = {};
@@ -227,15 +439,47 @@
             console.error("Error preloading GIFs:", err);
           });
         function spinWheel() {
-          // Reload prizes data every RELOAD_FREQUENCY spins
+          // Check if prize manager is initialized
+          if (!prizeManager) {
+            console.error("Prize manager not initialized");
+            return;
+          }
+
+          // Reload prizes data every RELOAD_FREQUENCY spins to refresh wheel configuration
           spinCounter++;
           if (spinCounter % RELOAD_FREQUENCY === 0) {
             loadPrizesData();
           }
 
-          const winningSegment = weightedRandom(chances);
+          // Update probabilities based on current stock
+          chances = prizeManager.getProbabilities();
           
-          currentWinningGift = giftNames[winningSegment];
+          // Check if any prizes are still available
+          if (chances.every(chance => chance === 0)) {
+            console.log("All prizes have been distributed! Resetting stock...");
+            // Reset stock quantities to original values
+            prizeManager.resetStock();
+            chances = prizeManager.getProbabilities();
+            
+            // Update wheel display after reset
+            updateWheelFromPrizeManager();
+          }
+
+          const winningSegment = weightedRandom(chances);
+          currentWinningSlot = winningSegment;
+          
+          // Record the win and get the actual prize won
+          const wonPrize = prizeManager.recordWin(winningSegment);
+          if (!wonPrize) {
+            console.error("Failed to record win for slot:", winningSegment);
+            return;
+          }
+          
+          currentWinningGift = wonPrize.name;
+          
+          console.log(`Won: ${currentWinningGift} (slot ${winningSegment})`);
+          console.log("Updated status:", prizeManager.getStatus());
+          
           wheelAngle = 0;
           const segmentAngleDegrees = winningSegment * 30 + 90;
           const segmentAngleRadians = segmentAngleDegrees * (Math.PI / 180);
@@ -381,7 +625,7 @@
           }
         }
         function drawGifts() {
-          if (wheelImages.length < 12 || loaded < 2) return;
+          if (wheelImages.length === 0 || loaded < 2) return;
           const centerX = 243 * 8;
           const centerY = 70 * 8;
           const giftRadius = 85 * 8;
@@ -391,13 +635,18 @@
             let angle = baseAngle + wheelAngle;
             let x = centerX + Math.round(Math.sin(angle) * giftRadius);
             let y = centerY - Math.round(Math.cos(angle) * giftRadius);
-            ctx.drawImage(
-              wheelImages[i % wheelImages.length],
-              Math.round(x - giftSize / 2),
-              Math.round(y - giftSize / 2),
-              giftSize,
-              giftSize
-            );
+            
+            // Use modulo to cycle through available images if we have fewer than 12
+            const imageIndex = i % wheelImages.length;
+            if (wheelImages[imageIndex]) {
+              ctx.drawImage(
+                wheelImages[imageIndex],
+                Math.round(x - giftSize / 2),
+                Math.round(y - giftSize / 2),
+                giftSize,
+                giftSize
+              );
+            }
           }
         }
         function drawIndicator() {
@@ -476,8 +725,15 @@
               }
               if (showtext) {
                 const message = `You won ${currentWinningGift}!`;
+                let statusMessage = "Spinning for prizes!";
                 
-                // Create background rectangle
+                // Only show status if prizeManager is initialized
+                if (prizeManager) {
+                  const status = prizeManager.getStatus();
+                  statusMessage = `Remaining: ${status.remainingPrizes}/${status.totalPrizes} prizes`;
+                }
+                
+                // Create background rectangle for main message
                 const padding = 30;
                 ctx.font = "40px 'Press Start 2P', mona";
                 const metrics = ctx.measureText(message);
@@ -496,12 +752,12 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x - padding + 10, y - padding + 10, textWidth + (padding * 2) - 20, textHeight + (padding * 2) - 20);
                 
-                // Draw pixelated text
+                // Draw main winning text
                 ctx.fillStyle = "white";
-                //ctx.font = "45px 'Press Start 2P', mona"; // Increased font size
                 ctx.textBaseline = "top";
                 ctx.imageSmoothingEnabled = false; // Ensure pixelated look
                 ctx.fillText(message, x, y);
+                
                 ctx.imageSmoothingEnabled = true; // Reset for other elements
               }
             } else {
