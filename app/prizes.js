@@ -2,8 +2,7 @@
 // Each prize has a name, quantity, and image path
 const PRIZE_DATA = [
   { "name": "a pin", "quantity": 100, "path": "pin2.png" },
-  { "name": "a black hat", "quantity": 50, "path": "hat3.png" },
-  { "name": "a tote bag", "quantity": 50, "path": "tote-i.png" },
+  { "name": "a tote bag", "quantity": 56, "path": "tote-i.png" },
   { "name": "a pen", "quantity": 150, "path": "pen.png" },
   { "name": "a can cooler", "quantity": 150, "path": "koozie.png" }
 ];
